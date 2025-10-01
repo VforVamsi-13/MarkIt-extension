@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const highlightsContainer = document.getElementById('highlightsContainer');
     const clearBtn = document.getElementById('clearBtn');
+    const openAllBtn = document.getElementById('openAllBtn');
     const exportBtn = document.getElementById('exportBtn');
     const totalCount = document.getElementById('totalCount');
     const todayCount = document.getElementById('todayCount');
@@ -134,97 +135,136 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Export to PDF - SIMPLIFIED AND GUARANTEED TO WORK
-    exportBtn.addEventListener('click', function() {
+    // open All links
+    openAllBtn.addEventListener('click', function() {
         if (currentHighlights.length === 0) {
-            alert('No highlights to export!');
+            alert('No highlights with links to open!');
             return;
         }
 
-        if (!isPdfReady) {
-            alert('PDF library is still loading. Please wait a moment and try again.');
-            return;
-        }
+        const uniqueSources = [...new Set(currentHighlights.map(h => h.source))];
 
-        // Show loading indicator
-        loadingIndicator.style.display = 'block';
-        exportBtn.disabled = true;
-
-        try {
-            // Use the local jsPDF library
-            const doc = new jspdf.jsPDF();
-
-            // Add title
-            doc.setFontSize(20);
-            doc.text('My MarkIt Highlights', 20, 20);
-
-            // Add export info
-            doc.setFontSize(12);
-            doc.text(`Exported on: ${new Date().toLocaleString()}`, 20, 35);
-            doc.text(`Total Highlights: ${currentHighlights.length}`, 20, 45);
-
-            let y = 60;
-            const pageHeight = doc.internal.pageSize.height;
-            const margin = 20;
-            const maxWidth = 170;
-
-            // Add each highlight
-            currentHighlights.forEach((highlight, index) => {
-                // Check if we need a new page
-                if (y > pageHeight - 40) {
-                    doc.addPage();
-                    y = 20;
-                }
-
-                // Highlight number
-                doc.setFontSize(14);
-                doc.setFont(undefined, 'bold');
-                doc.text(`Highlight ${index + 1}:`, margin, y);
-                y += 8;
-
-                // Highlight text
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                const textLines = doc.splitTextToSize(highlight.text, maxWidth);
-                doc.text(textLines, margin, y);
-                y += textLines.length * 5 + 5;
-
-                // Source
-                doc.setFontSize(9);
-                doc.setTextColor(0, 0, 255);
-                doc.text(`Source: ${highlight.source}`, margin, y);
-                y += 5;
-
-                // Date
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Saved: ${highlight.date}`, margin, y);
-                y += 15;
-
-                // Reset text color
-                doc.setTextColor(0, 0, 0);
+        if (confirm(`Open all ${uniqueSources.length} unique links in new tabs?`)) {
+            uniqueSources.forEach(link => {
+                chrome.tabs.create({ url: link });
             });
-
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `highlights-${timestamp}.pdf`;
-
-            // Save the PDF - this should trigger download
-            doc.save(filename);
-
-            // Hide loading indicator
-            setTimeout(() => {
-                loadingIndicator.style.display = 'none';
-                exportBtn.disabled = false;
-                alert(`PDF exported successfully! Saved as: ${filename}`);
-            }, 1000);
-
-        } catch (error) {
-            console.error('PDF export error:', error);
-            loadingIndicator.style.display = 'none';
-            exportBtn.disabled = false;
-            alert('Error generating PDF: ' + error.message);
         }
     });
+
+    // Export to PDF - SIMPLIFIED AND GUARANTEED TO WORK
+    exportBtn.addEventListener('click', function() {
+    if (currentHighlights.length === 0) {
+        alert('No highlights to export!');
+        return;
+    }
+
+    if (!isPdfReady) {
+        alert('PDF library is still loading. Please wait a moment and try again.');
+        return;
+    }
+
+        // Show loading indicator
+    loadingIndicator.style.display = 'block';
+    exportBtn.disabled = true;
+
+    try {
+            // Use the local jsPDF library
+        const doc = new jspdf.jsPDF();
+
+            // Add title
+        doc.setFontSize(20);
+        doc.text('My MarkIt Highlights', 20, 20);
+
+            // Add export info
+        doc.setFontSize(12);
+        doc.text(`Exported on: ${new Date().toLocaleString()}`, 20, 35);
+        doc.text(`Total Highlights: ${currentHighlights.length}`, 20, 45);
+
+        let y = 60;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 20;
+        const maxWidth = 170;
+
+
+        // Add each highlight
+        currentHighlights.forEach((highlight, index) => {
+                // Check if we need a new page
+            if (y > pageHeight - 40) {
+                doc.addPage();
+                y = 20;
+            }
+
+                // Highlight number
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Highlight ${index + 1}:`, margin, y);
+            y += 8;
+
+                // Highlight text
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            const textLines = doc.splitTextToSize(highlight.text, maxWidth);
+            doc.text(textLines, margin, y);
+            y += textLines.length * 5 + 5;
+
+                // Source
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 255);
+            // doc.text(`Source: ${highlight.source}`, margin, y);
+            doc.textWithLink(`Source: ${highlight.source}`, margin, y, { url: highlight.source });
+            y += 5;
+
+                // Date
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Saved: ${highlight.date}`, margin, y);
+            y += 15;
+
+                // Reset text color
+            doc.setTextColor(0, 0, 0);
+        });
+
+        // 🔁 Repeat "All Links" at the bottom (optional)
+        if (y > pageHeight - 60) {
+            doc.addPage();
+            y = 20;
+        }
+        const uniqueSources = [...new Set(currentHighlights.map(h => h.source).filter(Boolean))];
+
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('All Links(unique)', margin, y);
+        y += 8;
+
+        uniqueSources.forEach(link => {
+            const linkText = link.length > 80 ? link.substring(0, 80) + '...' : link;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.textWithLink(linkText, margin, y, { url: link });
+            y += 6;
+        });
+
+         // Generate filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `highlights-${timestamp}.pdf`;
+
+            // Save the PDF - this should trigger download
+        doc.save(filename);
+
+            // Hide loading indicator
+        setTimeout(() => {
+            loadingIndicator.style.display = 'none';
+            exportBtn.disabled = false;
+            alert(`PDF exported successfully! Saved as: ${filename}`);
+        }, 1000);
+
+    } catch (error) {
+        console.error('PDF export error:', error);
+        loadingIndicator.style.display = 'none';
+        exportBtn.disabled = false;
+        alert('Error generating PDF: ' + error.message);
+    }
+});
 
     // Utility functions
     function escapeHtml(text) {
